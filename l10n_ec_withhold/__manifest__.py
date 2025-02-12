@@ -3,10 +3,10 @@
     "summary": "Electronic Withholding adapted Ecuadorian localization",
     "category": "Account",
     "countries": ["ec"],
-    "author": "Odoo Community Association (OCA), Odoo-EC",
+    "author": "Odoo Community Association (OCA), Odoo-EC, Fabricio Rosero",
     "website": "https://github.com/OCA/l10n-ecuador",
     "license": "AGPL-3",
-    "version": "17.0.1.0.1",
+    "version": "18.0",
     "depends": ["l10n_ec_base", "l10n_ec_account_edi"],
     "data": [
         "security/ir.model.access.csv",

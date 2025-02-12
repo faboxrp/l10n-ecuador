@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <template id="electronic_report_common_head">
         <div
@@ -34,9 +34,7 @@
                                 class="text-center"
                                 t-if="company.partner_id.city and company.partner_id.country_id"
                             >
-                                <span t-out="company.partner_id.city.capitalize()" />
-                                -
-                                <span
+                                <span t-out="company.partner_id.city.capitalize()" /> - <span
                                     t-out="company.partner_id.country_id.name.capitalize()"
                                 />
                             </div>
@@ -103,30 +101,36 @@
                             <strong t-field="company.partner_id.vat" />
                             <br />
                             <br />
-                            <strong t-out="document_string" />
-                            <br />
-                            Nº.
-                            <span t-out="document_number" />
-                            <br />
-                            <br />
-                            <strong>NÚMERO DE AUTORIZACION</strong>
-                            <br />
-                            <span t-field="edi_doc.l10n_ec_xml_access_key" />
+                            <strong
+                                t-out="document_string" />
+                            <br /> Nº. <span t-out="document_number" />
                             <br />
                             <br />
-                            <strong>Fecha y hora de autorización:</strong>
-                            <span t-field="edi_doc.l10n_ec_authorization_date" />
+                            <strong>NÚMERO
+                            DE AUTORIZACION</strong>
+                            <br />
+                            <span
+                                t-field="edi_doc.l10n_ec_xml_access_key" />
                             <br />
                             <br />
-                            <strong>AMBIENTE:</strong>
+                            <strong>Fecha
+                            y hora de autorización:</strong>
+                            <span
+                                t-field="edi_doc.l10n_ec_authorization_date" />
+                            <br />
+                            <br />
+                            <strong>
+                            AMBIENTE:</strong>
                             <span t-field="company.l10n_ec_type_environment" />
                             <br />
                             <br />
-                            <strong>EMISION:</strong>
+                            <strong>
+                            EMISION:</strong>
                             <span t-out="'Normal'" />
                             <br />
                             <br />
-                            <strong>CLAVE DE ACCESO:</strong>
+                            <strong>CLAVE DE
+                            ACCESO:</strong>
                             <br />
                             <div
                                 class="oe_product_image text-center"
@@ -190,8 +194,8 @@
                     t-foreach="o.l10n_ec_additional_information_move_ids"
                     t-as="info_additional"
                 >
-                    <strong t-field="info_additional.name" />:
-                    <span t-field="info_additional.description" />
+                    <strong t-field="info_additional.name" />: <span
+                        t-field="info_additional.description" />
                         <br />
                 </t>
             </t>
@@ -203,7 +207,8 @@
                 <tr>
                     <th
                         style="border: 1px solid black; border-bottom: 1px solid black !important;"
-                    >Forma de Pago</th>
+                    >Forma
+                        de Pago</th>
                     <th
                         class="text-center"
                         style="border: 1px solid black; border-bottom: 1px solid black !important;"
@@ -236,15 +241,13 @@
     <template id="electronic_report_common_total_info">
         <table class="table table-sm table-bordered-black small">
             <t t-set="tax_totals" t-value="o.tax_totals" />
+            <!-- <t t-set="currency" t-value="o.currency_id or o.company_id.currency_id" /> -->
             <t t-call="account.document_tax_totals" />
         </table>
     </template>
     <template id="electronic_report_page_footer">
-        <div class="footer text-right" style="font-size:8px" t-if="not hide_footer">
-            Pag.
-            <span class="page" />
-            /
-            <span class="topage" />
+        <div class="footer text-right" style="font-size:8px" t-if="not hide_footer"> Pag. <span
+                class="page" /> / <span class="topage" />
         </div>
     </template>
 </odoo>

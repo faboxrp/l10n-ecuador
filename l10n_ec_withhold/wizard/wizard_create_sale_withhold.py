@@ -139,8 +139,7 @@ class WizardCreateSaleWithhold(models.TransientModel):
                 raise UserError(
                     _(
                         f"Withhold date: {self.issue_date} "
-                        "should be equal or major "
-                        f"that invoice date: {invoice.invoice_date}"
+                        f"should be equal or major that invoice date: {invoice.invoice_date}"
                     )
                 )
         self.validate_selected_invoices()
@@ -175,11 +174,6 @@ class WizardCreateSaleWithhold(models.TransientModel):
             for tax_vals in taxes_vals:
                 lines.append((0, 0, tax_vals))
         for invoice, total_counter in total_by_invoice.items():
-            move_name = _(
-                "RET: %(document_number)s Invoice: %(invoice_number)s",
-                document_number=self.document_number,
-                invoice_number=invoice.l10n_latam_document_number,
-            )
             lines.append(
                 (
                     0,
@@ -188,7 +182,7 @@ class WizardCreateSaleWithhold(models.TransientModel):
                         "partner_id": self.partner_id.id,
                         "account_id": self.partner_id.property_account_receivable_id.id,
                         "l10n_ec_invoice_withhold_id": invoice.id,
-                        "name": move_name,
+                        "name": f"RET: {self.document_number} Invoice: {invoice.l10n_latam_document_number}",
                         "debit": 0.00,
                         "credit": total_counter,
                     },

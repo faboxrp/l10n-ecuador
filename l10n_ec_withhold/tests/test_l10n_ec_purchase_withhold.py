@@ -72,16 +72,8 @@ class TestL10nPurchaseWithhold(TestL10nECEdiCommon):
     def test_01_l10n_ec_invoice_no_require_withhold(self):
         # withholding is not required by fiscal position
         self.partner_ruc.property_account_position_id = self.position_no_withhold
-        invoice = self._l10n_ec_create_in_invoice(
-            self.partner_ruc,
-            auto_post=True,
-            l10n_latam_document_number="001-001-000000001",
-        )
-        invoice2 = self._l10n_ec_create_in_invoice(
-            self.partner_ruc,
-            auto_post=True,
-            l10n_latam_document_number="001-001-000000002",
-        )
+        invoice = self._l10n_ec_create_in_invoice(self.partner_ruc, auto_post=True)
+        invoice2 = self._l10n_ec_create_in_invoice(self.partner_ruc, auto_post=True)
         self.assertFalse(invoice.l10n_ec_withhold_active)
         self.assertFalse(invoice2.l10n_ec_withhold_active)
         msj_expected = _(
@@ -157,16 +149,8 @@ class TestL10nPurchaseWithhold(TestL10nECEdiCommon):
     def test_04_l10n_ec_withhold_two_invoices(self):
         # purchase withhold is only for one invoice
         self.partner_ruc.property_account_position_id = self.position_require_withhold
-        invoice = self._l10n_ec_create_in_invoice(
-            self.partner_ruc,
-            auto_post=True,
-            l10n_latam_document_number="001-001-000000001",
-        )
-        invoice2 = self._l10n_ec_create_in_invoice(
-            self.partner_ruc,
-            auto_post=True,
-            l10n_latam_document_number="001-001-000000002",
-        )
+        invoice = self._l10n_ec_create_in_invoice(self.partner_ruc, auto_post=True)
+        invoice2 = self._l10n_ec_create_in_invoice(self.partner_ruc, auto_post=True)
         self.assertTrue(invoice.l10n_ec_withhold_active)
         self.assertTrue(invoice2.l10n_ec_withhold_active)
         msj_expected = _(

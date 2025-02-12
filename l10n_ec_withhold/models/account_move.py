@@ -111,10 +111,9 @@ class AccountMove(models.Model):
             if other_withholdings > 1:
                 raise UserError(
                     _(
-                        "You can't create other withholding "
-                        "with same Number: %(ref)s for Customer: %(customer)s",
-                        ref=move.ref,
-                        customer=move.partner_id.display_name,
+                        "You can't create other withholding with same Number: %s for Customer: %s",
+                        move.ref,
+                        move.partner_id.display_name,
                     )
                 )
 
@@ -154,8 +153,7 @@ class AccountMove(models.Model):
 
     def _post(self, soft=True):
         # OVERRIDE
-        # Set the electronic document to be posted
-        # and post immediately for synchronous formats.
+        # Set the electronic document to be posted and post immediately for synchronous formats.
         # only for purchase withhold
         posted = super()._post(soft=soft)
         for move in posted:
@@ -168,10 +166,9 @@ class AccountMove(models.Model):
                 if not move.l10n_ec_tax_support and lines_without_tax_support:
                     raise UserError(
                         _(
-                            "Please fill a Tax Support "
-                            "on Invoice: %s or on all Invoice lines",
-                            move.display_name,
+                            "Please fill a Tax Support on Invoice: %s or on all Invoice lines"
                         )
+                        % (move.display_name)
                     )
         return posted
 
@@ -257,7 +254,7 @@ class AccountMove(models.Model):
     def is_withhold(self):
         return (
             self.country_code == "EC"
-            and self.l10n_latam_document_type_id.internal_type == "withhold"
+            and self.l10n_latam_internal_type == "withhold"
             and self.l10n_ec_withholding_type in self.get_withhold_types()
         )
 
@@ -447,18 +444,17 @@ class AccountMoveLine(models.Model):
 
     def _compute_tax_key(self):
         # group tax by l10n_ec_tax_support and invoice, for split taxes
-        res = super()._compute_tax_key()
+        super()._compute_tax_key()
         for line in self.filtered("l10n_ec_invoice_withhold_id"):
             line.tax_key = frozendict(
                 **line.tax_key,
                 l10n_ec_invoice_withhold_id=line.l10n_ec_invoice_withhold_id.id,
                 l10n_ec_tax_support=line._get_l10n_ec_tax_support(),
             )
-        return res
 
     def _compute_all_tax(self):
         # take values from new key(see _compute_tax_key)
-        res = super()._compute_all_tax()
+        super()._compute_all_tax()
         for line in self.filtered("l10n_ec_invoice_withhold_id"):
             for key in list(line.compute_all_tax.keys()):
                 new_key = frozendict(
@@ -467,4 +463,3 @@ class AccountMoveLine(models.Model):
                     l10n_ec_tax_support=line._get_l10n_ec_tax_support(),
                 )
                 line.compute_all_tax[new_key] = line.compute_all_tax.pop(key, {})
-        return res

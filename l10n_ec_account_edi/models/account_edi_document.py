@@ -71,15 +71,20 @@ class AccountEdiDocument(models.Model):
         for doc_line in self.move_id.invoice_line_ids.filtered(
             lambda x: x.display_type == "product"
         ).sorted("price_subtotal"):
-            line_tax_data = taxes_data.get("tax_details_per_record", {}).get(doc_line)
+            line_tax_data = taxes_data.get(
+                "tax_details_per_record", {}).get(doc_line)
             if document_type == "invoice":
-                res.append(doc_line.l10n_ec_get_invoice_edi_data(line_tax_data))
+                res.append(
+                    doc_line.l10n_ec_get_invoice_edi_data(line_tax_data))
             if document_type == "purchase_liquidation":
-                res.append(doc_line.l10n_ec_get_invoice_edi_data(line_tax_data))
+                res.append(
+                    doc_line.l10n_ec_get_invoice_edi_data(line_tax_data))
             if document_type == "credit_note":
-                res.append(doc_line.l10n_ec_get_credit_note_edi_data(line_tax_data))
+                res.append(
+                    doc_line.l10n_ec_get_credit_note_edi_data(line_tax_data))
             if document_type == "debit_note":
-                res.append(doc_line.l10n_ec_get_debit_note_edi_data(line_tax_data))
+                res.append(
+                    doc_line.l10n_ec_get_debit_note_edi_data(line_tax_data))
             # TODO: agregar logica para demas tipos de documento
         return res
 
@@ -92,18 +97,47 @@ class AccountEdiDocument(models.Model):
 
     @api.model
     def _l10n_ec_prepare_tax_vals_edi(self, tax_data):
-        tax = tax_data["tax"]
+        # _logger.info("Tax Data: %s", tax_data)
+        tax = tax_data.get("tax")
+        if not tax:
+            tax_id = tax_data.get("tax_id")
+            if not tax_id:
+                grouping_key = tax_data.get("grouping_key")
+                if grouping_key:
+                    if isinstance(grouping_key, models.BaseModel):
+                        if grouping_key._name == 'account.tax':
+                            tax = grouping_key
+                        else:
+                            _logger.error(
+                                "El 'grouping_key' es un modelo pero no es 'account.tax': %s", grouping_key._name)
+                            return {}
+                    else:
+                        tax = self.env['account.tax'].browse(grouping_key)
+                else:
+                    _logger.error(
+                        "No se encontró 'tax', 'tax_id' ni 'grouping_key' en tax_data: %s", tax_data)
+                    return {}
+            else:
+                tax = self.env['account.tax'].browse(tax_id)
+        if not tax or not tax.exists():
+            _logger.error(
+                "No se pudo encontrar el registro de impuesto en tax_data: %s", tax_data)
+            return {}
+
         base_amount = tax_data.get("base_amount_currency", 0.0)
         tax_amount = tax_data.get("tax_amount_currency", 0.0)
-        rate = tax.amount
-        tax_vals = {
-            "codigo": tax.tax_group_id.l10n_ec_xml_fe_code,
-            "codigoPorcentaje": tax.l10n_ec_xml_fe_code,
+        tax_group_code = tax.tax_group_id.l10n_ec_xml_fe_code
+        tax_code = tax.l10n_ec_xml_fe_code
+
+        rate = int(tax.amount)
+        tax_name = tax.tax_group_id.l10n_ec_type
+        return {
+            "codigo": tax_group_code,
+            "codigoPorcentaje": tax_code,
             "baseImponible": self._l10n_ec_number_format(abs(base_amount), 6),
             "tarifa": self._l10n_ec_number_format(abs(rate), 6),
             "valor": self._l10n_ec_number_format(abs(tax_amount), 6),
         }
-        return tax_vals
 
     def l10n_ec_header_get_total_with_taxes(self, taxes_data):
         self.ensure_one()
@@ -128,7 +162,8 @@ class AccountEdiDocument(models.Model):
         :param document_number: str with format 001-001-0123456789
         :return tuple(entity_number, printer_point, sequence)
         """
-        entity_number, printer_point, sequence_number = document_number.split("-")
+        entity_number, printer_point, sequence_number = document_number.split(
+            "-")
         return (
             entity_number.rjust(3, "0"),
             printer_point.rjust(3, "0"),
@@ -153,11 +188,11 @@ class AccountEdiDocument(models.Model):
                 _logger.error(
                     "Wrong XML File, access_key: %s, Error: %s",
                     self.l10n_ec_xml_access_key,
-                    tools.ustr(e),
+                    str(e),
                 )
             else:
                 raise UserError(
-                    _("Wrong XML File, Detail: \n%s") % tools.ustr(e)
+                    _("Wrong XML File, Detail: \n%s") % str(e)
                 ) from None
         return True
 
@@ -233,6 +268,8 @@ class AccountEdiDocument(models.Model):
 
     def _l10n_ec_get_document_type(self):
         document_type = self.move_id.l10n_latam_internal_type
+        print("document_type", document_type)
+        # _logger.info("document_type: %s", document_type)
         return document_type
 
     def l10n_ec_get_current_document(self):
@@ -295,8 +332,7 @@ class AccountEdiDocument(models.Model):
     @api.model
     def l10n_ec_get_check_digit(self, access_key):
         """
-        Compute verificator digit for access_key  according SRI technical data sheet
-        (table 1)
+        Compute verificator digit for access_key  according SRI technical data sheet(table 1)
         """
         mult = 1
         current_sum = 0
@@ -347,6 +383,8 @@ class AccountEdiDocument(models.Model):
                 self._l10n_ec_get_info_debit_note(),
             )
         # TODO: agregar logica para demas tipos de documento
+        # print("xml_file", xml_file)
+        # _logger.info("xml_file: %s", xml_file)
         return xml_file
 
     def _l10n_ec_get_info_additional(self):
@@ -368,7 +406,8 @@ class AccountEdiDocument(models.Model):
         date_invoice = invoice.invoice_date
         company = invoice.company_id or self.env.company
         taxes_data = invoice._l10n_ec_get_taxes_grouped_by_tax_group()
-        amount_total = abs(taxes_data.get("base_amount") + taxes_data.get("tax_amount"))
+        amount_total = abs(taxes_data.get("base_amount") +
+                           taxes_data.get("tax_amount"))
         currency = invoice.currency_id
         currency_name = currency.name or "DOLAR"
         invoice_data = {
@@ -414,7 +453,8 @@ class AccountEdiDocument(models.Model):
         date_invoice = invoice.invoice_date
         company = invoice.company_id or self.env.company
         taxes_data = invoice._l10n_ec_get_taxes_grouped_by_tax_group()
-        amount_total = abs(taxes_data.get("base_amount") + taxes_data.get("tax_amount"))
+        amount_total = abs(taxes_data.get("base_amount") +
+                           taxes_data.get("tax_amount"))
         currency = invoice.currency_id
         currency_name = currency.name or "DOLAR"
         invoice_data = {
@@ -458,7 +498,8 @@ class AccountEdiDocument(models.Model):
         date_invoice = credit_note.invoice_date
         company = credit_note.company_id or self.env.company
         taxes_data = credit_note._l10n_ec_get_taxes_grouped_by_tax_group()
-        amount_total = abs(taxes_data.get("base_amount") + taxes_data.get("tax_amount"))
+        amount_total = abs(taxes_data.get("base_amount") +
+                           taxes_data.get("tax_amount"))
         currency = credit_note.currency_id
         currency_name = currency.name or "DOLAR"
         credit_note_data = {
@@ -476,9 +517,7 @@ class AccountEdiDocument(models.Model):
                 credit_note.l10n_ec_legacy_document_date
             ).strftime(EDI_DATE_FORMAT),
             "motivo": credit_note.l10n_ec_reason,
-            "tipoIdentificacionComprador": (
-                credit_note.l10n_ec_get_identification_type()
-            ),
+            "tipoIdentificacionComprador": credit_note.l10n_ec_get_identification_type(),
             "razonSocialComprador": self._l10n_ec_clean_str(
                 credit_note.commercial_partner_id.name
             )[:300],
@@ -521,7 +560,8 @@ class AccountEdiDocument(models.Model):
             # con suds nosotros haciamos la conversion
             # pero con zeep la libreria se encarga de hacer la conversion
             # tenerlo presente cuando se use adjuntos en lugar del sistema de archivos
-            response = client_ws.service.validarComprobante(xml=xml_file.encode())
+            response = client_ws.service.validarComprobante(
+                xml=xml_file.encode())
             _logger.info(
                 "Send file succesful, claveAcceso %s. %s",
                 self.l10n_ec_xml_access_key,
@@ -529,12 +569,11 @@ class AccountEdiDocument(models.Model):
             )
         except Exception as e:
             _logger.info(
-                "can't validate document in %s, claveAcceso %s. ERROR: %s TRACEBACK: "
-                "%s",
+                "can't validate document in %s, claveAcceso %s. ERROR: %s TRACEBACK: %s",
                 str(client_ws),
                 self.l10n_ec_xml_access_key,
-                tools.ustr(e),
-                tools.ustr(traceback.format_exc()),
+                str(e),
+                str(traceback.format_exc()),
             )
         return response
 
@@ -556,7 +595,8 @@ class AccountEdiDocument(models.Model):
                 "comprobante"
             ) or []
             for comprobante in comprobantes:
-                mensajes = (comprobante.get("mensajes") or {}).get("mensaje") or []
+                mensajes = (comprobante.get("mensajes")
+                            or {}).get("mensaje") or []
                 for msj in mensajes:
                     if msj.get("tipo") == "ERROR":
                         ok = False
@@ -567,12 +607,12 @@ class AccountEdiDocument(models.Model):
                     msj_str = f"{tipo} [{identificador}] {messaje} {additional_info}"
                     msj_list.append(msj_str)
         except Exception as e:
-            msj_list.append(tools.ustr(e))
+            msj_list.append(str(e))
             _logger.info(
                 "can't validate document, clave de acceso %s. ERROR: %s TRACEBACK: %s",
                 self.l10n_ec_xml_access_key,
-                tools.ustr(e),
-                tools.ustr(traceback.format_exc()),
+                str(e),
+                str(traceback.format_exc()),
             )
             ok = False
         return ok, msj_list
@@ -589,7 +629,8 @@ class AccountEdiDocument(models.Model):
         except Exception as e:
             response = False
             _logger.warning(
-                "Error send xml to server %s. ERROR: %s", client_ws, tools.ustr(e)
+                "Error send xml to server %s. ERROR: %s", client_ws, str(
+                    e)
             )
         return response
 
@@ -603,12 +644,14 @@ class AccountEdiDocument(models.Model):
         msj_list = []
         response_data = serialize_object(response, dict)
         if not response_data or not response_data.get("autorizaciones"):
-            _logger.warning("Authorization response error, No Autorizacion in response")
+            _logger.warning(
+                "Authorization response error, No Autorizacion in response")
             return is_auth, msj_list
         # a veces el SRI devulve varias autorizaciones, unas como no autorizadas
         # pero otra si autorizada, si pasa eso, tomar la que fue autorizada
         # las demas ignorarlas
-        autorizacion_list = response_data.get("autorizaciones").get("autorizacion")
+        autorizacion_list = response_data.get(
+            "autorizaciones").get("autorizacion")
         if not isinstance(autorizacion_list, list):
             autorizacion_list = [autorizacion_list]
         for doc in autorizacion_list:
@@ -641,7 +684,8 @@ class AccountEdiDocument(models.Model):
                 l10n_ec_authorization_date,
             )
             self.write(
-                {"l10n_ec_authorization_date": l10n_ec_authorization_date.strftime(DTF)}
+                {"l10n_ec_authorization_date": l10n_ec_authorization_date.strftime(
+                    DTF)}
             )
             break
         return is_auth, msj_list
@@ -652,7 +696,8 @@ class AccountEdiDocument(models.Model):
         company = debit_note.company_id or self.env.company
         date_debit = debit_note.invoice_date
         taxes_data = debit_note._l10n_ec_get_taxes_grouped_by_tax_group()
-        amount_total = abs(taxes_data.get("base_amount") + taxes_data.get("tax_amount"))
+        amount_total = abs(taxes_data.get("base_amount") +
+                           taxes_data.get("tax_amount"))
 
         debit_note_dict = {
             "fechaEmision": date_debit.strftime(EDI_DATE_FORMAT),
@@ -715,6 +760,8 @@ class AccountEdiDocument(models.Model):
         )
         for account_move in account_moves:
             account_move.l10n_ec_send_email()
+            # nueva linea by fbx (registrar el envío del email)
+            account_move.write({"is_move_sent": True})
 
         # Update documents with final consumer
         account_moves_with_final_consumer = self.env["account.move"].search(

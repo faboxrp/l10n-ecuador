@@ -14,10 +14,9 @@ class AccountJournal(models.Model):
 
     @api.onchange("type")
     def _onchange_type(self):
-        res = super()._onchange_type()
+        super()._onchange_type()
         if self.type != "general":
             self.l10n_ec_withholding_type = False
-        return res
 
     @api.onchange("type", "l10n_ec_withholding_type")
     def _onchange_l10n_ec_withholding_type(self):
@@ -31,12 +30,11 @@ class AccountJournal(models.Model):
         "l10n_ec_withholding_type",
     )
     def _compute_l10n_ec_require_emission(self):
-        res = super()._compute_l10n_ec_require_emission()
+        super()._compute_l10n_ec_require_emission()
         # add support to purchase withholding to show agency and printer point
         for journal in self.filtered(lambda j: j.country_code == "EC"):
             if journal.l10n_ec_withholding_type == "purchase":
                 journal.l10n_ec_require_emission = True
-        return res
 
     @api.depends(
         "type",

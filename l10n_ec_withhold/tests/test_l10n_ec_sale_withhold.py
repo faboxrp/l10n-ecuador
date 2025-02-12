@@ -133,9 +133,9 @@ class TestL10nSaleWithhold(TestL10nECEdiCommon):
 
     def test_l10n_ec_authorization_sale_withhold(self):
         """
-        Fail when authorization key not validate
-        or authorization key not correspond to withhold
-        or Fail when withhold not has detail
+        Fail when authorization key not validate or authorization key not correspond to withhold
+        or
+        Fail when withhold not has detail
         """
         partner = self.partner_with_email
         invoice = self.get_invoice(partner)
@@ -269,27 +269,27 @@ class TestL10nSaleWithhold(TestL10nECEdiCommon):
         check values concilied
         invoice1:
             total 100,
-            tax 15,
+            tax 12,
             apply Withhold VAT 100%, profit 10%,
-            total_withhold=25(15+10)
-            Invoice residual = 115 - 25 = 90
+            total_withhold=22(12+10)
+            Invoice residual = 112 - 22 = 90
         invoice2:
             total 100,
-            tax 15,
+            tax 12,
             apply Withhold VAT 50%, profit 10%,
-            total_withhold=17.5(7.5+10)
-            Invoice residual = 115 - 17.5 = 97.5
+            total_withhold=16(6+10)
+            Invoice residual = 112 - 16 = 96
         """
         self.product_a.list_price = 100
         partner = self.partner_with_email
         invoice1 = self.get_invoice(partner)
         invoice2 = self.get_invoice(partner)
-        self.assertEqual(invoice1.amount_total, 115)
-        self.assertEqual(invoice1.amount_tax, 15)
-        self.assertEqual(invoice1.amount_residual, 115)
-        self.assertEqual(invoice2.amount_total, 115)
-        self.assertEqual(invoice2.amount_tax, 15)
-        self.assertEqual(invoice2.amount_residual, 115)
+        self.assertEqual(invoice1.amount_total, 112)
+        self.assertEqual(invoice1.amount_tax, 12)
+        self.assertEqual(invoice1.amount_residual, 112)
+        self.assertEqual(invoice2.amount_total, 112)
+        self.assertEqual(invoice2.amount_tax, 12)
+        self.assertEqual(invoice2.amount_residual, 112)
         all_invoices = invoice1 + invoice2
         wizard = self._prepare_new_wizard_withhold(
             all_invoices,
@@ -336,10 +336,10 @@ class TestL10nSaleWithhold(TestL10nECEdiCommon):
                 ("account_id.account_type", "=", "asset_receivable"),
             ]
         )
-        self.assertEqual(abs(withholding_lines_invoice1.balance), 25)
-        self.assertEqual(abs(withholding_lines_invoice2.balance), 17.5)
+        self.assertEqual(abs(withholding_lines_invoice1.balance), 22)
+        self.assertEqual(abs(withholding_lines_invoice2.balance), 16)
         self.assertEqual(invoice1.amount_residual, 90)
-        self.assertEqual(invoice2.amount_residual, 97.5)
+        self.assertEqual(invoice2.amount_residual, 96)
         self.assertIn(
             withholding_lines_invoice1,
             invoice1.line_ids.matched_credit_ids.credit_move_id,

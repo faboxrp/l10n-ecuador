@@ -113,8 +113,7 @@ class TestL10nECCommon(AccountTestInvoicingCommon):
                 "currency_id": self.env.ref("base.USD").id,
             }
         )
-        # Agregar tipo de contribuyente, obligado a llevar contabilidad, y emitir
-        # retenciones
+        # Agregar tipo de contribuyente, obligado a llevar contabilidad, y emitir retenciones
         required_accounting = self.AccountFiscalPosition.search(
             [("name", "like", "Persona natural obligada a llevar contabilidad")]
         )
@@ -152,8 +151,7 @@ class TestL10nECCommon(AccountTestInvoicingCommon):
     ):
         """Método base con datos genericos para crear formulario de:
          Faturas, notas de crédito,debito, liquidaciones y retenciones de venta
-        :param move_type: Tipo de documento (in_invoice,out_invoice,in_refund,
-          out_refund)
+        :param move_type: Tipo de documento (in_invoice,out_invoice,in_refund, out_refund)
         :param internal_type: Tipo interno del documento(invoice,credit_note)
         :param partner: Partner del documento
         :param number: Número del documento, si no se envia se coloca uno
@@ -163,8 +161,8 @@ class TestL10nECCommon(AccountTestInvoicingCommon):
          según el internal_type y move_type; campo requerido
         :param latam_document_type: Tipo de documento, si no se envia por defecto
          coloca uno según el partner y journal; campo requerido
-        :param use_payment_term: Si es True, colocará un término de pago en el
-          documento, por defecto False
+        :param use_payment_term: Si es True, colocará un término de pago en el documento,
+          por defecto False
         :param form_id: ID del formulario si fuese diferente al de la factura,
           por defecto None
         """
@@ -205,7 +203,6 @@ class TestL10nECCommon(AccountTestInvoicingCommon):
         journal=None,
         latam_document_type=None,
         auto_post=False,
-        l10n_latam_document_number=None,
     ):
         """Crea y devuelve una factura de compra
         :param partner: Partner, si no se envia se coloca uno
@@ -230,11 +227,6 @@ class TestL10nECCommon(AccountTestInvoicingCommon):
             use_payment_term=True,
         )
         form.l10n_ec_electronic_authorization = self.number_authorization_electronic
-        form.l10n_latam_document_number = (
-            "001-001-000000001"
-            if not l10n_latam_document_number
-            else l10n_latam_document_number
-        )
         invoice = form.save()
         if auto_post:
             invoice.action_post()
@@ -243,11 +235,8 @@ class TestL10nECCommon(AccountTestInvoicingCommon):
     def generate_payment(self, invoice_ids, journal=False, amount=False):
         """Genera pago para facturas
         :param invoice_ids: Ids de facturas para realizar pago
-        :param journal: Diario, para realizar el pago, por defecto se coloca diario
-          banco.
-        :param amount: Monto del pago, Si no se coloca se realiza el pago total de la
-          factura.
-        """
+        :param journal: Diario, para realizar el pago, por defecto se coloca diario banco
+        :param amount: Monto del pago, Si no se coloca se realiza el pago total de la factura"""
         wizard_payment = self.env["account.payment.register"].with_context(
             active_model="account.move", active_ids=invoice_ids
         )

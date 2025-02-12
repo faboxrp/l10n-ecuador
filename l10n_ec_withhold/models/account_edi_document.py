@@ -117,12 +117,13 @@ class AccountEdiDocument(models.Model):
                 filter_invl_to_apply=filter_support_invoice_lines,
             )
             amount_total = abs(invoice_taxes_data.get("base_amount"))
-            date_invoice = invoice._l10n_ec_get_document_date()
             support_data = {
                 "codSustento": tax_support,
                 "codDocSustento": invoice.l10n_latam_document_type_id.code or "01",
                 "numDocSustento": invoice.l10n_latam_document_number.replace("-", ""),
-                "fechaEmisionDocSustento": date_invoice.strftime(EDI_DATE_FORMAT),
+                "fechaEmisionDocSustento": invoice._l10n_ec_get_document_date().strftime(
+                    EDI_DATE_FORMAT
+                ),
                 "pagoLocExt": "01",  # TODO
                 "tipoRegi": False,  # TODO
                 "paisEfecPago": False,  # TODO

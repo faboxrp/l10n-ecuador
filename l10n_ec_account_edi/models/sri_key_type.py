@@ -1,3 +1,4 @@
+import os
 import logging
 import subprocess
 from base64 import b64decode
@@ -13,30 +14,73 @@ from lxml import etree
 from xades import XAdESContext, template  # pylint: disable=W7936
 from xades.policy import ImpliedPolicy  # pylint: disable=W7936
 
-from odoo import api, fields, models, tools
+from odoo import fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
 _logger = logging.getLogger(__name__)
 
-KEY_TO_PEM_CMD = (
-    "openssl pkcs12 -nocerts -in %s -out %s -passin pass:%s -passout pass:%s"
-)
+openssl_config = """
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
+"""
 
 
 def convert_key_cer_to_pem(key, password):
-    # TODO compute it from a python way
-    with NamedTemporaryFile(
-        "wb", suffix=".key", prefix="edi.ec.tmp."
-    ) as key_file, NamedTemporaryFile(
-        "rb", suffix=".key", prefix="edi.ec.tmp."
-    ) as keypem_file:
-        key_file.write(key)
-        key_file.flush()
-        command = KEY_TO_PEM_CMD % (key_file.name, keypem_file.name, password, password)
-        subprocess.call(command.split())
-        key_pem = keypem_file.read().decode()
-    return key_pem
+    # Crear un archivo de configuración temporal para OpenSSL
+    with NamedTemporaryFile("w", delete=False) as config_file:
+        config_file.write(openssl_config)
+        config_path = config_file.name
+
+    try:
+        # Crear archivos temporales para la clave y la clave en formato PEM
+        with NamedTemporaryFile("wb", suffix=".key", prefix="edi.ec.tmp.", delete=False) as key_file, \
+                NamedTemporaryFile("rb", suffix=".pem", prefix="edi.ec.tmp.", delete=False) as keypem_file:
+
+            key_file.write(key)
+            key_file.flush()
+
+            # # Logs de los nombres de los archivos temporales y la contraseña
+            # _logger.info("Key file path: %s", key_file.name)
+            # _logger.info("PEM file path: %s", keypem_file.name)
+            # _logger.info("Password for key decryption: %s", password)
+
+            # Construye y loguea el comando completo antes de ejecutarlo
+            command = f"OPENSSL_CONF={config_path} openssl pkcs12 -nocerts -in {key_file.name} -out {keypem_file.name} -passin pass:{password} -passout pass:{password}"
+            # _logger.info("OpenSSL Command: %s", command)
+
+            # Ejecutar el comando y capturar la salida
+            process = subprocess.run(
+                command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if process.returncode != 0:
+                _logger.error(
+                    "OpenSSL command failed with stderr: %s", process.stderr.decode())
+                _logger.error(
+                    "OpenSSL command failed with stdout: %s", process.stdout.decode())
+
+            keypem_file.seek(0)  # Regresa al principio del archivo para leerlo
+            key_pem = keypem_file.read().decode()
+            # _logger.info("Extracted PEM: %s", key_pem[:100])
+
+            return key_pem
+
+    finally:
+        # Eliminar archivos temporales
+        os.remove(config_path)
+        os.remove(key_file.name)
+        os.remove(keypem_file.name)
 
 
 class SriKeyType(models.Model):
@@ -65,14 +109,16 @@ class SriKeyType(models.Model):
     # datos informativos del certificado
     issue_date = fields.Date(string="Date of issue", readonly=True)
     expire_date = fields.Date(string="Expiration date", readonly=True)
-    subject_serial_number = fields.Char(string="Serial Number(Subject)", readonly=True)
-    subject_common_name = fields.Char(string="Organization(Subject)", readonly=True)
-    issuer_common_name = fields.Char(string="Organization (Issuer)", readonly=True)
+    subject_serial_number = fields.Char(
+        string="Serial Number(Subject)", readonly=True)
+    subject_common_name = fields.Char(
+        string="Organization(Subject)", readonly=True)
+    issuer_common_name = fields.Char(
+        string="Organization (Issuer)", readonly=True)
     cert_serial_number = fields.Char(
         string="Serial number (certificate)", readonly=True
     )
     cert_version = fields.Char(string="Version", readonly=True)
-    days_for_notification = fields.Integer(string="Days for notification", default=30)
 
     @tools.ormcache("self.file_content", "self.password", "self.state")
     def _decode_certificate(self):
@@ -83,18 +129,17 @@ class SriKeyType(models.Model):
         try:
             p12 = pkcs12.load_pkcs12(file_content, self.password.encode())
         except Exception as ex:
-            _logger.warning(tools.ustr(ex))
+            _logger.warning(str(ex))
             raise UserError(
                 _(
                     "Error opening the signature, possibly the signature key has "
                     "been entered incorrectly or the file is not supported. \n%s"
                 )
-                % (tools.ustr(ex))
+                % (str(ex))
             ) from None
         certificate = p12.cert.certificate
         # revisar si el certificado tiene la extension digital_signature activada
-        # caso contrario tomar del listado de certificados el primero que tengan esta
-        # extension
+        # caso contrario tomar del listado de certificados el primero que tengan esta extension
         is_digital_signature = True
         try:
             extension = certificate.extensions.get_extension_for_oid(
@@ -102,7 +147,7 @@ class SriKeyType(models.Model):
             )
             is_digital_signature = extension.value.digital_signature
         except ExtensionNotFound as ex:
-            _logger.debug(tools.ustr(ex))
+            _logger.debug(str(ex))
         if not is_digital_signature:
             # cuando hay mas de un certificado, tomar el certificado correcto
             # este deberia tener entre las extensiones digital_signature = True
@@ -113,7 +158,7 @@ class SriKeyType(models.Model):
                         ExtensionOID.KEY_USAGE
                     )
                 except ExtensionNotFound as ex:
-                    _logger.debug(tools.ustr(ex))
+                    _logger.debug(str(ex))
                 if extension.value.digital_signature:
                     certificate = other_cert.certificate
                     break
@@ -127,7 +172,8 @@ class SriKeyType(models.Model):
         # asi que tomar desde Signing Key en caso de existir
         if start_index >= 0:
             private_key_str = private_key_str[start_index:]
-        start_index = private_key_str.find("-----BEGIN ENCRYPTED PRIVATE KEY-----")
+        start_index = private_key_str.find(
+            "-----BEGIN ENCRYPTED PRIVATE KEY-----")
         private_key_str = private_key_str[start_index:]
         private_key = serialization.load_pem_private_key(
             private_key_str.encode(),
@@ -207,7 +253,8 @@ class SriKeyType(models.Model):
         data = xmlsig.template.add_x509_data(ki)
         xmlsig.template.x509_data_add_certificate(data)
         xmlsig.template.add_key_value(ki)
-        qualifying = template.create_qualifying_properties(signature, name=signature_id)
+        qualifying = template.create_qualifying_properties(
+            signature, name=signature_id)
         props = template.create_signed_properties(
             qualifying, name=signature_property_id
         )
@@ -224,25 +271,3 @@ class SriKeyType(models.Model):
         ctx.sign(signature)
         ctx.verify(signature)
         return etree.tostring(doc, encoding="UTF-8", pretty_print=True).decode()
-
-    def days_to_expire(self):
-        if self.expire_date:
-            return (self.expire_date - fields.Date.context_today(self)).days
-        return 0
-
-    @api.model
-    def action_email_notification(self):
-        email_template = self.env.ref(
-            "l10n_ec_account_edi.email_template_notify", False
-        )
-        all_companies = self.env["res.company"].search([])
-        for company in all_companies:
-            certificates = self.search(
-                [("company_id", "=", company.id), ("state", "=", "valid")]
-            )
-            for cert in certificates:
-                if 0 < cert.days_to_expire() <= cert.days_for_notification:
-                    email_template.send_mail(
-                        cert.id, email_layout_xmlid="mail.mail_notification_light"
-                    )
-        return True

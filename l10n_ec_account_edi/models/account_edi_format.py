@@ -80,8 +80,7 @@ class AccountEdiFormat(models.Model):
                     if not tax.l10n_ec_xml_fe_code:
                         errors.append(
                             _(
-                                "You must set Tax Code for Electronic Documents into "
-                                "Tax: %s",
+                                "You must set Tax Code for Electronic Documents into Tax: %s",
                                 tax.display_name,
                             )
                         )
@@ -92,8 +91,7 @@ class AccountEdiFormat(models.Model):
             ):
                 errors.append(
                     _(
-                        "You must set Payment Method SRI on Current document or "
-                        "Journal: %s",
+                        "You must set Payment Method SRI on Current document or Journal: %s",
                         journal.display_name,
                     )
                 )
@@ -142,8 +140,7 @@ class AccountEdiFormat(models.Model):
                 if not company.l10n_ec_liquidation_version:
                     errors.append(
                         _(
-                            "You must set XML Version for Purchase Liquidation into "
-                            "company %s",
+                            "You must set XML Version for Purchase Liquidation into company %s",
                             company.display_name,
                         )
                     )
@@ -165,7 +162,8 @@ class AccountEdiFormat(models.Model):
                         )
                     )
             # TODO: agregar logica para demas tipos de documento
-            errors.extend(self._l10n_ec_check_edi_configuration(document, company))
+            errors.extend(
+                self._l10n_ec_check_edi_configuration(document, company))
         return errors
 
     def _l10n_ec_check_edi_configuration(self, document, company):
@@ -214,7 +212,7 @@ class AccountEdiFormat(models.Model):
 
     def _l10n_ec_post_move_edi(self, documents):
         res = {}
-        # tomar la primer company, todos los documentos deben pertenecer a la misma
+        # tomar la primer company, todos los documentos deben pertenecer a la misma company
         company = documents[0].company_id or self.env.company
         client_send = self._l10n_ec_get_edi_ws_client(
             company.l10n_ec_type_environment, "reception"
@@ -236,7 +234,8 @@ class AccountEdiFormat(models.Model):
                     xml_file = edi_doc._l10n_ec_render_xml_edi()
                     _logger.debug(xml_file)
                     edi_doc._l10n_ec_action_check_xsd(xml_file)
-                    xml_signed = company.l10n_ec_key_type_id.action_sign(xml_file)
+                    xml_signed = company.l10n_ec_key_type_id.action_sign(
+                        xml_file)
                     if not attachment:
                         attachment = self.env["ir.attachment"].create(
                             {
@@ -263,8 +262,7 @@ class AccountEdiFormat(models.Model):
                                 document: {
                                     "success": False,
                                     "error": _(
-                                        "Can't connect to SRI Webservice, try in few "
-                                        "minutes"
+                                        "Can't connect to SRI Webservice, try in few minutes"
                                     ),
                                     "attachment": attachment,
                                     "blocking_level": "error",
@@ -276,13 +274,15 @@ class AccountEdiFormat(models.Model):
                     is_sent = False
                     msj = []
                     if edi_doc.l10n_ec_last_sent_date:
-                        sri_res = edi_doc._l10n_ec_edi_send_xml_auth(auth_client)
+                        sri_res = edi_doc._l10n_ec_edi_send_xml_auth(
+                            auth_client)
                         is_auth, msj = edi_doc._l10n_ec_edi_process_response_auth(
                             sri_res
                         )
                         errors.extend(msj)
                     if not is_auth:
-                        sri_res = edi_doc._l10n_ec_edi_send_xml(client_send, xml_signed)
+                        sri_res = edi_doc._l10n_ec_edi_send_xml(
+                            client_send, xml_signed)
                         is_sent, msj = edi_doc._l10n_ec_edi_process_response_send(
                             sri_res
                         )
@@ -291,18 +291,20 @@ class AccountEdiFormat(models.Model):
                         # guardar la fecha de envio al SRI
                         # en caso de errores, poder saber si hubo un intento o no
                         # para antes de volver a enviarlo, consultar si se autorizo
-                        edi_doc.write({"l10n_ec_last_sent_date": datetime.now()})
-                        sri_res = edi_doc._l10n_ec_edi_send_xml_auth(auth_client)
+                        edi_doc.write(
+                            {"l10n_ec_last_sent_date": datetime.now()})
+                        sri_res = edi_doc._l10n_ec_edi_send_xml_auth(
+                            auth_client)
                         is_auth, msj = edi_doc._l10n_ec_edi_process_response_auth(
                             sri_res
                         )
                         errors.extend(msj)
             except Exception as ex:
-                _logger.error(tools.ustr(traceback.format_exc()))
+                _logger.error(traceback.format_exc())
                 errors.append(
                     _(
                         "EDI Error creating xml file: %s",
-                        tools.ustr(ex),
+                        str(ex),
                     )
                 )
             blocking_level = False
@@ -358,6 +360,6 @@ class AccountEdiFormat(models.Model):
             _logger.warning(
                 "Error in Connection with web services of SRI: %s. Error: %s",
                 ws_url,
-                tools.ustr(e),
+                str(e),
             )
         return wsClient
